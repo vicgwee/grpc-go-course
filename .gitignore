@@ -1,2 +1,2 @@
 .idea/
-greet/greetpb/greet.pb.go
+*.pb.go
