@@ -57,7 +57,7 @@ func (*server) Avg(stream calculatorpb.CalculatorService_AvgServer) error {
 	count := 0
 	sum := int32(0)
 	for {
-		msg, err := stream.Recv()
+		req, err := stream.Recv()
 		if err == io.EOF {
 			avg := float64(sum) / float64(count)
 			res := &calculatorpb.AvgResponse{
@@ -66,9 +66,9 @@ func (*server) Avg(stream calculatorpb.CalculatorService_AvgServer) error {
 			return stream.SendAndClose(res)
 		}
 		if err != nil {
-			log.Fatalf("")
+			log.Fatalf("Streaming error: %v", err)
 		}
-		sum += msg.GetNumber()
+		sum += req.GetNumber()
 		count++
 	}
 }
