@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"time"
@@ -50,6 +51,26 @@ func (*server) PND(req *calculatorpb.PNDRequest, stream calculatorpb.CalculatorS
 		}
 	}
 	return nil
+}
+
+func (*server) Avg(stream calculatorpb.CalculatorService_AvgServer) error {
+	count := 0
+	sum := int32(0)
+	for {
+		req, err := stream.Recv()
+		if err == io.EOF {
+			avg := float64(sum) / float64(count)
+			res := &calculatorpb.AvgResponse{
+				Average: avg,
+			}
+			return stream.SendAndClose(res)
+		}
+		if err != nil {
+			log.Fatalf("Streaming error: %v", err)
+		}
+		sum += req.GetNumber()
+		count++
+	}
 }
 
 func main() {
