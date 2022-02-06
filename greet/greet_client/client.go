@@ -41,7 +41,8 @@ func main() {
 
 	//doUnary(c)
 	//doServerStreaming(c)
-	doClientStreaming(c)
+	//doClientStreaming(c)
+	doBidirectionalStreaming(c)
 }
 
 func doUnary(c greetpb.GreetServiceClient) {
@@ -113,5 +114,54 @@ func doClientStreaming(c greetpb.GreetServiceClient) {
 		log.Fatalf("Error while closing LongGreet RPC: %v", err)
 	}
 	fmt.Printf("LongGreet Response: %v", res.GetResult())
+}
 
+func doBidirectionalStreaming(c greetpb.GreetServiceClient) {
+	names := []string{"a", "b", "c", "d"}
+
+	requests := make([]*greetpb.GreetEveryoneRequest, len(names))
+
+	for i := 0; i < len(names); i++ {
+		req := &greetpb.GreetEveryoneRequest{
+			Greeting: &greetpb.Greeting{
+				FirstName: names[i],
+				LastName:  names[len(names)-i-1],
+			},
+		}
+		requests[i] = req
+	}
+
+	stream, err := c.GreetEveryone(context.Background())
+	if err != nil {
+		log.Fatalf("Error while calling GreetEveryone RPC: %v", err)
+	}
+
+	waitc := make(chan struct{})
+	// send many messages to the server
+	go func() {
+		for _, req := range requests {
+			fmt.Printf("Sent: %v \n", req)
+			stream.Send(req)
+			time.Sleep(time.Second)
+		}
+		stream.CloseSend()
+	}()
+
+	// receive messages from the server
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				log.Fatalf("Error while closing LongGreet RPC: %v", err)
+				break
+			}
+			fmt.Printf("GreetEveryone Response: %v\n", res.GetResult())
+		}
+		close(waitc)
+	}()
+
+	<-waitc
 }
