@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"time"
 
 	"../calculatorpb"
 
@@ -25,7 +26,9 @@ func main() {
 
 	//doUnary(c)
 	//doStreamingService(c)
-	doStreamingClient(c)
+	//doStreamingClient(c)
+
+	doBidirectionalStreaming(c)
 }
 
 func doUnary(c calculatorpb.CalculatorServiceClient) {
@@ -90,4 +93,47 @@ func doStreamingClient(c calculatorpb.CalculatorServiceClient) {
 		log.Fatalf("Avg Close error: %v", err)
 	}
 	log.Printf("Avg result: %v", res.GetAverage())
+}
+
+func doBidirectionalStreaming(c calculatorpb.CalculatorServiceClient) {
+
+	stream, err := c.FindMaximum(context.Background())
+
+	if err != nil {
+		log.Fatalf("FindMaximum Request error: %v", err)
+	}
+
+	nums := []int32{1, 2, 3, 5, 4, 6}
+	var waitc chan struct{}
+
+	// Send reqs
+	go func() {
+		for _, num := range nums {
+			req := &calculatorpb.FindMaximumRequest{
+				Number: int32(num),
+			}
+			err := stream.Send(req)
+			if err != nil {
+				log.Fatalf("Streaming error: %v", err)
+			}
+			time.Sleep(time.Second)
+		}
+		stream.CloseSend()
+	}()
+
+	// Receive numbers
+	go func() {
+		for {
+			res, err := stream.Recv()
+			if err == io.EOF {
+				close(waitc)
+			}
+			if err != nil {
+				log.Fatalf("Receive stream err: %v", err)
+			}
+			log.Printf("Received: %v", res.GetMaximum())
+		}
+	}()
+
+	<-waitc
 }
