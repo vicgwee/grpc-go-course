@@ -88,11 +88,11 @@ func (*server) FindMaximum(stream calculatorpb.CalculatorService_FindMaximumServ
 		num := req.GetNumber()
 		if num > max {
 			max = num
+			res := &calculatorpb.FindMaximumResponse{
+				Maximum: max,
+			}
+			stream.Send(res)
 		}
-		res := &calculatorpb.FindMaximumResponse{
-			Maximum: max,
-		}
-		stream.Send(res)
 	}
 	return nil
 }
